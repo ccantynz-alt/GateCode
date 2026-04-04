@@ -7,6 +7,7 @@ export interface User {
   email: string | null;
   avatar_url: string | null;
   plan: "free" | "pro" | "team" | "enterprise";
+  stripe_customer_id: string | null;
   created_at: string;
 }
 
@@ -237,6 +238,89 @@ export async function matchRule(
     )
     .bind(user_id, scope, repo, repo, repo)
     .first<Rule>();
+}
+
+// ── API Keys ───────────────────────────────────────────────────────
+
+export interface ApiKey {
+  id: number;
+  user_id: number;
+  name: string;
+  key_hash: string;
+  key_prefix: string;
+  scopes: string;
+  last_used_at: string | null;
+  created_at: string;
+}
+
+export async function createApiKey(
+  db: D1Database,
+  params: {
+    user_id: number;
+    name: string;
+    key_hash: string;
+    key_prefix: string;
+    scopes: string;
+  }
+): Promise<ApiKey> {
+  const row = await db
+    .prepare(
+      `INSERT INTO api_keys (user_id, name, key_hash, key_prefix, scopes)
+       VALUES (?, ?, ?, ?, ?)
+       RETURNING *`
+    )
+    .bind(params.user_id, params.name, params.key_hash, params.key_prefix, params.scopes)
+    .first<ApiKey>();
+
+  return row!;
+}
+
+export async function getApiKeyByHash(
+  db: D1Database,
+  key_hash: string
+): Promise<ApiKey | null> {
+  return db
+    .prepare(`SELECT * FROM api_keys WHERE key_hash = ?`)
+    .bind(key_hash)
+    .first<ApiKey>();
+}
+
+export async function listApiKeys(
+  db: D1Database,
+  user_id: number
+): Promise<Omit<ApiKey, "key_hash">[]> {
+  const { results } = await db
+    .prepare(
+      `SELECT id, user_id, name, key_prefix, scopes, last_used_at, created_at
+       FROM api_keys WHERE user_id = ? ORDER BY created_at DESC`
+    )
+    .bind(user_id)
+    .all<Omit<ApiKey, "key_hash">>();
+
+  return results;
+}
+
+export async function deleteApiKey(
+  db: D1Database,
+  id: number,
+  user_id: number
+): Promise<boolean> {
+  const result = await db
+    .prepare(`DELETE FROM api_keys WHERE id = ? AND user_id = ?`)
+    .bind(id, user_id)
+    .run();
+
+  return result.meta.changes > 0;
+}
+
+export async function touchApiKey(
+  db: D1Database,
+  id: number
+): Promise<void> {
+  await db
+    .prepare(`UPDATE api_keys SET last_used_at = datetime('now') WHERE id = ?`)
+    .bind(id)
+    .run();
 }
 
 // ── Audit Log ───────────────────────────────────────────────────────

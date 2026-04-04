@@ -8,6 +8,8 @@ export type Env = {
     GITHUB_CLIENT_ID: string;
     GITHUB_CLIENT_SECRET: string;
     APP_URL: string;
+    STRIPE_SECRET_KEY: string;
+    STRIPE_WEBHOOK_SECRET: string;
   };
   Variables: {
     user: import("./db/queries").User;

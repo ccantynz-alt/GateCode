@@ -5,6 +5,7 @@ import { z } from "zod";
 import { zValidator } from "@hono/zod-validator";
 import type { Env } from "../types";
 import { authMiddleware } from "../middleware/auth";
+import { rateLimit } from "../middleware/rateLimit";
 import { sseManager } from "../lib/notifications";
 import {
   createPermission,
@@ -13,6 +14,8 @@ import {
   approvePermission,
   denyPermission,
   addAuditLog,
+  getApiKeyByHash,
+  touchApiKey,
 } from "../db/queries";
 import type { Rule, Permission } from "../db/queries";
 
@@ -38,6 +41,16 @@ function matchesPattern(repo: string, pattern: string): boolean {
 
 const app = new Hono<Env>();
 
+// ── Helper: hash a key with SHA-256 ─────────────────────────────────────
+
+async function hashKey(key: string): Promise<string> {
+  const encoded = new TextEncoder().encode(key);
+  const digest = await crypto.subtle.digest("SHA-256", encoded);
+  return Array.from(new Uint8Array(digest))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
 // ── POST /api/request — Public endpoint called by AI agents ─────────────
 
 const requestBodySchema = z.object({
@@ -49,11 +62,48 @@ const requestBodySchema = z.object({
   username: z.string().optional(),
 });
 
+// Rate limiting: applied inside the handler after determining auth status
+const authenticatedRateLimit = rateLimit({ max: 60, window: 60 });
+const unauthenticatedRateLimit = rateLimit({ max: 10, window: 60 });
+
 app.post("/api/request", zValidator("json", requestBodySchema), async (c) => {
   const body = c.req.valid("json");
 
+  // ── API key authentication via X-GateCode-Key header ──────────────────
+  let apiKeyUserId: number | undefined;
+  const apiKeyHeader = c.req.header("X-GateCode-Key");
+  if (apiKeyHeader) {
+    const keyHash = await hashKey(apiKeyHeader);
+    const apiKey = await getApiKeyByHash(c.env.DB, keyHash);
+    if (!apiKey) {
+      return c.json({ error: "Invalid API key" }, 401);
+    }
+    // Check that the key has the 'request' scope
+    const scopes = apiKey.scopes.split(",").map((s) => s.trim());
+    if (!scopes.includes("request")) {
+      return c.json({ error: "API key lacks 'request' scope" }, 403);
+    }
+    apiKeyUserId = apiKey.user_id;
+    // Update last_used_at in the background
+    c.executionCtx.waitUntil(touchApiKey(c.env.DB, apiKey.id));
+  }
+
+  // ── Apply rate limiting based on auth status ──────────────────────────
+  const isAuthenticated = !!apiKeyUserId || !!c.get("user" as never);
+  const rateLimitMiddleware = isAuthenticated
+    ? authenticatedRateLimit
+    : unauthenticatedRateLimit;
+
+  // Run rate limiter — if it returns a response, that means 429
+  const rateLimitResponse = await rateLimitMiddleware(c, async () => {
+    // continue
+  });
+  if (rateLimitResponse) {
+    return rateLimitResponse;
+  }
+
   // Resolve the target user
-  let userId: number | undefined = body.user_id;
+  let userId: number | undefined = apiKeyUserId ?? body.user_id;
   if (!userId && body.username) {
     const user = await c.env.DB.prepare(
       "SELECT id FROM users WHERE username = ?"

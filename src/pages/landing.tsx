@@ -349,6 +349,72 @@ export const landingPage = async (c: Context<Env>) => {
       box-shadow: none;
     }
 
+    /* ── Code examples ────────────────────────────── */
+    .code-tabs {
+      display: flex; gap: 0; border-bottom: 1px solid var(--border); margin-bottom: 0;
+    }
+    .code-tab {
+      padding: .6rem 1.25rem; font-size: .85rem; font-family: var(--mono);
+      color: var(--text-dim); cursor: pointer; border-bottom: 2px solid transparent;
+      transition: all .15s;
+    }
+    .code-tab:hover { color: var(--text); }
+    .code-tab.active { color: var(--blue); border-bottom-color: var(--blue); }
+    .code-block-wrap {
+      max-width: 720px; margin: 0 auto;
+      border: 1px solid var(--border); border-radius: 12px; overflow: hidden;
+      background: #0d0d14; box-shadow: 0 16px 48px rgba(0,0,0,.4);
+    }
+    .code-panel { display: none; }
+    .code-panel.active { display: block; }
+    .code-block {
+      padding: 1.5rem; font-family: var(--mono); font-size: .82rem;
+      line-height: 1.8; color: var(--text-dim); overflow-x: auto; white-space: pre;
+    }
+    .code-block .kw { color: var(--purple); }
+    .code-block .fn { color: var(--blue); }
+    .code-block .str { color: var(--green); }
+    .code-block .cm { color: #555570; }
+    .code-block .num { color: #f59e0b; }
+    .code-block .op { color: var(--text); }
+
+    /* ── Integrations ──────────────────���───────────── */
+    .integrations-row {
+      display: flex; gap: 2rem; justify-content: center; flex-wrap: wrap;
+      margin-top: 2rem;
+    }
+    .integration-badge {
+      display: flex; align-items: center; gap: .6rem;
+      padding: .75rem 1.5rem;
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 10px; font-size: .9rem; font-weight: 500;
+      transition: border-color .2s, transform .2s;
+    }
+    .integration-badge:hover { border-color: var(--blue); transform: translateY(-2px); }
+    .integration-badge svg { width: 22px; height: 22px; }
+
+    /* ── Stats bar ────────────────────────────────── */
+    .stats-bar {
+      display: flex; justify-content: center; gap: 4rem; flex-wrap: wrap;
+      padding: 3rem 1.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .stat { text-align: center; }
+    .stat-num {
+      font-size: 2.5rem; font-weight: 800; letter-spacing: -.03em;
+      background: linear-gradient(135deg, var(--blue), var(--purple));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .stat-label { font-size: .85rem; color: var(--text-dim); margin-top: .25rem; }
+
+    @media (max-width: 640px) {
+      .stats-bar { gap: 2rem; }
+      .stat-num { font-size: 1.75rem; }
+      .integrations-row { gap: 1rem; }
+      .integration-badge { padding: .6rem 1rem; font-size: .8rem; }
+    }
+
     /* ── Footer ─────────────────────────────────── */
     footer {
       border-top: 1px solid var(--border);
@@ -419,9 +485,9 @@ export const landingPage = async (c: Context<Env>) => {
           <div class="terminal-line"><span class="prompt">agent $</span> <span class="cmd">gatecode request --repo acme/api --scope write</span></div>
           <div class="terminal-line"><span class="highlight">Waiting for approval...</span></div>
           <div class="terminal-line"><span class="comment"># You approve on your phone in seconds</span></div>
-          <div class="terminal-line"><span class="success">\u2713 Approved by @you (scoped: write, expires: 1h)</span></div>
+          <div class="terminal-line"><span class="success">&#10003; Approved by @you (scoped: write, expires: 1h)</span></div>
           <div class="terminal-line"><span class="prompt">agent $</span> <span class="cmd">git push origin feat/new-endpoint</span></div>
-          <div class="terminal-line"><span class="success">\u2713 Push succeeded. Token expired.</span></div>
+          <div class="terminal-line"><span class="success">&#10003; Push succeeded. Token expired.</span></div>
         </div>
       </div>
     </div>
@@ -434,19 +500,19 @@ export const landingPage = async (c: Context<Env>) => {
       <h2 class="section-title">Three steps. Full control.</h2>
       <div class="steps">
         <div class="step">
-          <div class="step-icon">\u{1F916}</div>
+          <div class="step-icon">&#129302;</div>
           <div class="step-num">01</div>
           <h3>AI Agent Requests Access</h3>
           <p>Your coding agent hits the GateCode API with the repo, scope, and reason. A permission request is created instantly.</p>
         </div>
         <div class="step">
-          <div class="step-icon">\u2705</div>
+          <div class="step-icon">&#9989;</div>
           <div class="step-num">02</div>
           <h3>You Approve in Real-Time</h3>
           <p>Get notified on your phone or browser. Review the request and approve or deny with one tap. SSE keeps everything live.</p>
         </div>
         <div class="step">
-          <div class="step-icon">\u{1F512}</div>
+          <div class="step-icon">&#128274;</div>
           <div class="step-num">03</div>
           <h3>Scoped Token, Time-Limited</h3>
           <p>The agent receives a narrowly scoped token that auto-expires. Every action is logged in your audit trail.</p>
@@ -490,6 +556,105 @@ export const landingPage = async (c: Context<Env>) => {
           <span class="feature-tag">Expiry</span>
           <div class="feature-title">Time-Limited Access</div>
           <p>Tokens auto-expire after a configurable window. No lingering credentials. Access ends when the task does.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Stats -->
+  <div class="stats-bar">
+    <div class="stat"><div class="stat-num">&lt;50ms</div><div class="stat-label">Approval latency</div></div>
+    <div class="stat"><div class="stat-num">0</div><div class="stat-label">Dependencies (CLI)</div></div>
+    <div class="stat"><div class="stat-num">1hr</div><div class="stat-label">Default token TTL</div></div>
+    <div class="stat"><div class="stat-num">100%</div><div class="stat-label">Edge-deployed</div></div>
+  </div>
+
+  <!-- Code Examples -->
+  <section id="developers">
+    <div class="section-inner">
+      <div class="section-label">For developers</div>
+      <h2 class="section-title">Integrate in minutes.</h2>
+      <div class="code-block-wrap">
+        <div class="code-tabs">
+          <div class="code-tab active" data-panel="sdk">TypeScript SDK</div>
+          <div class="code-tab" data-panel="cli">CLI</div>
+          <div class="code-tab" data-panel="curl">cURL</div>
+        </div>
+        <div class="code-panel active" id="panel-sdk"><div class="code-block"><span class="kw">import</span> { <span class="fn">GateCode</span> } <span class="kw">from</span> <span class="str">'gatecode'</span>;
+
+<span class="kw">const</span> gate = <span class="kw">new</span> <span class="fn">GateCode</span>({
+  <span class="op">apiKey</span>: process.env.<span class="op">GATECODE_API_KEY</span>,
+  <span class="op">username</span>: <span class="str">'your-github-handle'</span>
+});
+
+<span class="cm">// Request access and wait for approval</span>
+<span class="kw">const</span> { token, expires_at } = <span class="kw">await</span> gate.<span class="fn">requestAndWait</span>({
+  <span class="op">repo</span>: <span class="str">'acme/api'</span>,
+  <span class="op">scope</span>: <span class="str">'write'</span>,
+  <span class="op">reason</span>: <span class="str">'Deploy hotfix to production'</span>
+});
+
+<span class="cm">// Use the scoped token</span>
+console.<span class="fn">log</span>(<span class="str">'Token expires:'</span>, expires_at);</div></div>
+        <div class="code-panel" id="panel-cli"><div class="code-block"><span class="cm"># Install globally or use npx</span>
+<span class="prompt">$</span> <span class="cmd">npm install -g gatecode</span>
+
+<span class="cm"># Login with your API key</span>
+<span class="prompt">$</span> <span class="cmd">gatecode login</span>
+<span class="str">? API Key: gk_a1b2c3d4...</span>
+<span class="success">&#10003; Saved to ~/.gatecode/config.json</span>
+
+<span class="cm"># Request access (waits for approval)</span>
+<span class="prompt">$</span> <span class="cmd">gatecode request acme/api --scope write --wait</span>
+<span class="highlight">&#9679; Waiting for approval...</span>
+<span class="success">&#10003; Approved! Token: ghp_xxx (expires in 1h)</span>
+
+<span class="cm"># Check status of a request</span>
+<span class="prompt">$</span> <span class="cmd">gatecode status 42</span>
+<span class="success">approved</span> | token: ghp_xxx | expires: 2026-04-04T08:30:00Z</div></div>
+        <div class="code-panel" id="panel-curl"><div class="code-block"><span class="cm"># Request access via API</span>
+<span class="prompt">$</span> <span class="cmd">curl -X POST https://gatecode.sh/api/request \</span>
+  <span class="cmd">  -H "X-GateCode-Key: gk_your_key" \</span>
+  <span class="cmd">  -H "Content-Type: application/json" \</span>
+  <span class="cmd">  -d '{</span>
+    <span class="str">"agent_id"</span>: <span class="str">"claude-code"</span>,
+    <span class="str">"repo"</span>: <span class="str">"acme/api"</span>,
+    <span class="str">"scope"</span>: <span class="str">"write"</span>,
+    <span class="str">"reason"</span>: <span class="str">"Deploy hotfix"</span>,
+    <span class="str">"username"</span>: <span class="str">"your-handle"</span>
+  <span class="cmd">}'</span>
+
+<span class="cm"># Response</span>
+{ <span class="str">"id"</span>: <span class="num">42</span>, <span class="str">"status"</span>: <span class="str">"pending"</span> }
+
+<span class="cm"># Poll for result</span>
+<span class="prompt">$</span> <span class="cmd">curl https://gatecode.sh/api/status/42</span>
+{ <span class="str">"id"</span>: <span class="num">42</span>, <span class="str">"status"</span>: <span class="str">"approved"</span>, <span class="str">"token"</span>: <span class="str">"ghp_..."</span> }</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Integrations -->
+  <section style="background:#08080d;">
+    <div class="section-inner" style="text-align:center">
+      <div class="section-label">Integrations</div>
+      <h2 class="section-title">Works with your AI tools.</h2>
+      <div class="integrations-row">
+        <div class="integration-badge">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+          GitHub Copilot
+        </div>
+        <div class="integration-badge">
+          <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2"/><path d="M8 12h8M12 8v8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          Claude Code
+        </div>
+        <div class="integration-badge">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M13.325 3.05L8.667 20.432l1.932.518 4.658-17.382-1.932-.518zM7.612 18.36l1.36-1.448-.024-.024-5.545-5.214 5.545-5.236-1.336-1.42-6.89 6.656 6.89 6.686zM16.388 18.36l6.89-6.686-6.89-6.656-1.336 1.42 5.545 5.236-5.545 5.214-.024.024 1.36 1.448z"/></svg>
+          Cursor
+        </div>
+        <div class="integration-badge">
+          <svg viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="3" width="18" height="18" rx="3" fill="none" stroke="currentColor" stroke-width="2"/><path d="M7 8h10M7 12h6M7 16h8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          Any MCP Client
         </div>
       </div>
     </div>
@@ -569,6 +734,16 @@ export const landingPage = async (c: Context<Env>) => {
     </div>
   </footer>
 
+  <script>
+    document.querySelectorAll('.code-tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.code-tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.code-panel').forEach(p => p.classList.remove('active'));
+        tab.classList.add('active');
+        document.getElementById('panel-' + tab.dataset.panel).classList.add('active');
+      });
+    });
+  </script>
 </body>
 </html>`
   );

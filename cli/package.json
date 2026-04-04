@@ -1,0 +1,27 @@
+{
+  "name": "gatecode",
+  "version": "0.1.0",
+  "description": "CLI and SDK for GateCode — OAuth-style permission gateway for AI coding agents",
+  "type": "module",
+  "main": "dist/sdk.js",
+  "types": "dist/sdk.d.ts",
+  "bin": {
+    "gatecode": "dist/cli.js"
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc",
+    "prepublishOnly": "npm run build"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "typescript": "^5.5.0"
+  },
+  "keywords": ["gatecode", "ai", "agent", "permissions", "oauth", "github"],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/gatecode/gatecode"
+  },
+  "homepage": "https://gatecode.sh"
+}

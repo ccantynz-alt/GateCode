@@ -9,6 +9,7 @@ import authRoutes from "./routes/auth";
 import requestRoutes from "./routes/requests";
 import rulesRoutes from "./routes/rules";
 import auditRoutes from "./routes/audit";
+import apikeysRoutes from "./routes/apikeys";
 import { landingPage } from "./pages/landing";
 import { dashboardPage } from "./pages/dashboard";
 import { authMiddleware } from "./middleware/auth";
@@ -35,5 +36,6 @@ app.route("/", authRoutes);
 app.route("/", requestRoutes);
 app.route("/", rulesRoutes);
 app.route("/", auditRoutes);
+app.route("/", apikeysRoutes);
 
 export default app;
