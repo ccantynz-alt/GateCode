@@ -10,7 +10,8 @@ import { sendWebhook, sendSlackNotification, sendDiscordNotification } from "../
 const app = new Hono<Env>();
 
 // All routes require authentication
-app.use("*", authMiddleware);
+app.use("/api/webhooks/*", authMiddleware);
+app.use("/api/webhooks", authMiddleware);
 
 // ── Helper: generate a random hex secret ──────────────────────────────
 

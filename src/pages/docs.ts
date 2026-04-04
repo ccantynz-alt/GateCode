@@ -12,6 +12,11 @@ export const docsPage = async (c: Context<Env>) => {
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>API Docs — GateCode</title>
+  <meta name="description" content="GateCode API reference. Integrate AI coding agents with OAuth-style permission gating." />
+  <meta property="og:title" content="API Docs — GateCode" />
+  <meta property="og:description" content="Full API reference for GateCode — permission requests, rules, webhooks, MCP server, billing." />
+  <meta name="theme-color" content="#0a0a0f" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>&#x1f6e1;</text></svg>" />
   <style>
     *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
     :root {

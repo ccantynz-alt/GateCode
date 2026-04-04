@@ -1,12 +1,18 @@
 {
-  "name": "gatecode",
+  "name": "gatecode-server",
   "version": "0.1.0",
+  "private": true,
   "type": "module",
   "main": "src/index.ts",
+  "workspaces": ["cli"],
   "scripts": {
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
-    "db:migrate": "wrangler d1 execute gatecode-db --local --file=src/db/schema.sql"
+    "db:migrate": "wrangler d1 execute gatecode-db --local --file=src/db/schema.sql",
+    "test": "bun test",
+    "typecheck": "tsc --noEmit",
+    "cli:build": "cd cli && npm run build",
+    "cli:publish": "cd cli && npm publish --access public"
   },
   "dependencies": {
     "hono": "^4.4.0",

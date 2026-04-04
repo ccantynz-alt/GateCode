@@ -14,7 +14,8 @@ import {
 const app = new Hono<Env>();
 
 // All routes require authentication
-app.use("*", authMiddleware);
+app.use("/api/keys/*", authMiddleware);
+app.use("/api/keys", authMiddleware);
 
 // ── Helper: hash a key with SHA-256 ────────────────────────────────────
 

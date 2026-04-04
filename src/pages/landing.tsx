@@ -10,6 +10,22 @@ export const landingPage = async (c: Context<Env>) => {
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>GateCode — Gate your code.</title>
+  <meta name="description" content="OAuth-style permission gateway for AI coding agents. Your AI asks, you approve, it codes. Real-time approvals, scoped tokens, audit logging." />
+  <meta name="theme-color" content="#0a0a0f" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>&#x1f6e1;</text></svg>" />
+
+  <!-- Open Graph -->
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://gatecode.sh" />
+  <meta property="og:title" content="GateCode — Gate your code." />
+  <meta property="og:description" content="OAuth-style permission gateway for AI coding agents. Your AI asks, you approve, it codes." />
+  <meta property="og:image" content="https://gatecode.sh/og.png" />
+
+  <!-- Twitter -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="GateCode — Gate your code." />
+  <meta name="twitter:description" content="OAuth-style permission gateway for AI coding agents. Real-time approvals, scoped tokens, audit logging." />
+  <meta name="twitter:image" content="https://gatecode.sh/og.png" />
   <style>
     *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
