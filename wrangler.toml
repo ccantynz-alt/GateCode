@@ -1,0 +1,17 @@
+name = "gatecode"
+main = "src/index.ts"
+compatibility_date = "2024-01-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "gatecode-db"
+database_id = "placeholder"
+
+[[kv_namespaces]]
+binding = "SESSIONS"
+id = "placeholder"
+
+[vars]
+GITHUB_CLIENT_ID = ""
+GITHUB_CLIENT_SECRET = ""
+APP_URL = "https://gatecode.sh"
