@@ -502,6 +502,7 @@ export const dashboardPage = async (c: Context<Env & { Variables: { user: { id: 
     <button class="tab" data-tab="rules">Rules</button>
     <button class="tab" data-tab="audit">Audit Log</button>
     <button class="tab" data-tab="keys">API Keys</button>
+    <button class="tab" data-tab="billing">Billing</button>
   </div>
 
   <div class="container">
@@ -588,6 +589,100 @@ export const dashboardPage = async (c: Context<Env & { Variables: { user: { id: 
           <input id="key-name" type="text" placeholder="e.g. claude-code-laptop" />
         </div>
         <button class="btn-create-key" onclick="createKey()">Generate Key</button>
+      </div>
+    </div>
+
+    <!-- Billing -->
+    <div id="panel-billing" class="tab-panel">
+      <div style="margin-bottom:1.5rem;">
+        <h3 style="font-size:1.15rem;font-weight:600;margin-bottom:.75rem;">Current Plan</h3>
+        <div style="display:flex;align-items:center;gap:.75rem;margin-bottom:1rem;">
+          <span style="font-size:1.5rem;font-weight:800;text-transform:capitalize;">${user.plan}</span>
+          <span class="badge ${user.plan === 'free' ? 'badge-pending' : user.plan === 'pro' ? 'badge-approved' : user.plan === 'team' ? 'badge-repo' : 'badge-auto_approved'}" style="font-size:.75rem;">${user.plan === 'free' ? 'Free Tier' : 'Active'}</span>
+        </div>
+        ${user.plan !== 'free'
+          ? html`<button class="btn-add-rule" onclick="openPortal()" style="margin-bottom:1rem;">Manage Subscription</button>`
+          : ''
+        }
+      </div>
+
+      ${user.plan === 'free' || user.plan === 'pro'
+        ? html`
+      <div style="margin-bottom:1.5rem;">
+        <h3 style="font-size:1.05rem;font-weight:600;margin-bottom:.75rem;">Upgrade Your Plan</h3>
+        <div style="display:flex;gap:.75rem;flex-wrap:wrap;">
+          ${user.plan === 'free'
+            ? html`<button class="btn-add-rule" onclick="upgradePlan('pro')">Upgrade to Pro — $9/mo</button>`
+            : ''
+          }
+          ${user.plan === 'free' || user.plan === 'pro'
+            ? html`<button class="btn-add-rule" onclick="upgradePlan('team')">Upgrade to Team — $29/mo</button>`
+            : ''
+          }
+        </div>
+      </div>`
+        : ''
+      }
+
+      <div style="margin-top:2rem;">
+        <h3 style="font-size:1.05rem;font-weight:600;margin-bottom:1rem;">Plan Comparison</h3>
+        <div class="audit-table-wrap">
+          <table class="audit-table" style="font-size:.85rem;">
+            <thead>
+              <tr>
+                <th>Feature</th>
+                <th>Free</th>
+                <th>Pro ($9)</th>
+                <th>Team ($29)</th>
+                <th>Enterprise ($99)</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Repositories</td>
+                <td>3</td>
+                <td>Unlimited</td>
+                <td>Unlimited</td>
+                <td>Unlimited</td>
+              </tr>
+              <tr>
+                <td>Auto-approve rules</td>
+                <td style="color:var(--red);">No</td>
+                <td style="color:var(--green);">Yes</td>
+                <td style="color:var(--green);">Yes</td>
+                <td style="color:var(--green);">Yes</td>
+              </tr>
+              <tr>
+                <td>Audit log retention</td>
+                <td>7 days</td>
+                <td>90 days</td>
+                <td>1 year</td>
+                <td>Unlimited</td>
+              </tr>
+              <tr>
+                <td>Team members</td>
+                <td>1</td>
+                <td>1</td>
+                <td>Up to 10</td>
+                <td>Unlimited</td>
+              </tr>
+              <tr>
+                <td>Support</td>
+                <td>Community</td>
+                <td>Priority</td>
+                <td>Priority</td>
+                <td>Dedicated + SLA</td>
+              </tr>
+              <tr>
+                <td>SSO</td>
+                <td style="color:var(--red);">No</td>
+                <td style="color:var(--red);">No</td>
+                <td style="color:var(--red);">No</td>
+                <td style="color:var(--green);">Yes</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
 
@@ -928,6 +1023,35 @@ export const dashboardPage = async (c: Context<Env & { Variables: { user: { id: 
     document.querySelector('[data-tab="keys"]').addEventListener('click', function() {
       loadKeys();
     });
+
+    // ── Billing ─────────────────────────────────
+    function upgradePlan(plan) {
+      fetch('/api/billing/checkout', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ plan: plan })
+      })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+          if (data.error) { alert(data.error); return; }
+          if (data.url) { window.location.href = data.url; }
+        })
+        .catch(function(err) { console.error('Checkout error', err); });
+    }
+
+    function openPortal() {
+      fetch('/api/billing/portal', {
+        method: 'POST',
+        credentials: 'same-origin'
+      })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+          if (data.error) { alert(data.error); return; }
+          if (data.url) { window.location.href = data.url; }
+        })
+        .catch(function(err) { console.error('Portal error', err); });
+    }
 
     // ── Stats ───────────────────────────────────
     fetch('/api/audit?limit=100', { credentials: 'same-origin' })

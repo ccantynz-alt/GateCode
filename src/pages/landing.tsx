@@ -688,7 +688,7 @@ console.<span class="fn">log</span>(<span class="str">'Token expires:'</span>, e
             <li>Audit log export</li>
             <li>Priority support</li>
           </ul>
-          <button class="btn-price" disabled>Coming Soon</button>
+          <a href="/auth/github" class="btn-price primary">Start Free Trial</a>
         </div>
 
         <div class="price-card">
@@ -700,7 +700,7 @@ console.<span class="fn">log</span>(<span class="str">'Token expires:'</span>, e
             <li>Org-wide policies</li>
             <li>Shared rules</li>
           </ul>
-          <button class="btn-price" disabled>Coming Soon</button>
+          <a href="/auth/github" class="btn-price">Start Free Trial</a>
         </div>
 
         <div class="price-card">
