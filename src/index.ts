@@ -11,6 +11,8 @@ import rulesRoutes from "./routes/rules";
 import auditRoutes from "./routes/audit";
 import apikeysRoutes from "./routes/apikeys";
 import billingRoutes from "./routes/billing";
+import webhookRoutes from "./routes/webhooks";
+import mcpRoutes from "./routes/mcp";
 import { landingPage } from "./pages/landing";
 import { dashboardPage } from "./pages/dashboard";
 import { authMiddleware } from "./middleware/auth";
@@ -39,5 +41,7 @@ app.route("/", rulesRoutes);
 app.route("/", auditRoutes);
 app.route("/", apikeysRoutes);
 app.route("/", billingRoutes);
+app.route("/", webhookRoutes);
+app.route("/", mcpRoutes);
 
 export default app;
