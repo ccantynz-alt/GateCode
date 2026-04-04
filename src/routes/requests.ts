@@ -352,7 +352,13 @@ app.post("/api/deny/:id", authMiddleware, async (c) => {
 
 // ── GET /api/status/:id — Public endpoint for agents to poll ────────────
 
+const statusRateLimit = rateLimit({ max: 30, window: 60 });
+
 app.get("/api/status/:id", async (c) => {
+  // Rate-limit status polling to prevent abuse
+  const rateLimitResponse = await statusRateLimit(c, async () => {});
+  if (rateLimitResponse) return rateLimitResponse;
+
   const permId = Number(c.req.param("id"));
 
   if (isNaN(permId)) {
@@ -364,20 +370,37 @@ app.get("/api/status/:id", async (c) => {
     return c.json({ error: "Permission not found" }, 404);
   }
 
-  // Only include token/expiry for approved permissions
-  if (perm.status === "approved") {
-    return c.json({
-      id: perm.id,
-      status: perm.status,
-      token: perm.token,
-      expires_at: perm.expires_at,
-    });
+  // Detect expired tokens — if approved but token has expired, report it
+  const isExpired =
+    perm.status === "approved" &&
+    perm.expires_at &&
+    new Date(perm.expires_at) < new Date();
+
+  const effectiveStatus = isExpired ? "expired" : perm.status;
+
+  // Base response with full context for agents
+  const response: Record<string, unknown> = {
+    id: perm.id,
+    status: effectiveStatus,
+    repo: perm.repo,
+    scope: perm.scope,
+    agent_id: perm.agent_id,
+    reason: perm.reason,
+    created_at: perm.created_at,
+  };
+
+  // Include token/expiry for approved (non-expired) permissions
+  if (perm.status === "approved" && !isExpired) {
+    response.token = perm.token;
+    response.expires_at = perm.expires_at;
   }
 
-  return c.json({
-    id: perm.id,
-    status: perm.status,
-  });
+  // For expired tokens, still include expiry so agents know when it lapsed
+  if (isExpired) {
+    response.expired_at = perm.expires_at;
+  }
+
+  return c.json(response);
 });
 
 export default app;
