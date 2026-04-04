@@ -4,7 +4,9 @@
   "private": true,
   "type": "module",
   "main": "src/index.ts",
-  "workspaces": ["cli"],
+  "workspaces": [
+    "cli"
+  ],
   "scripts": {
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
@@ -15,14 +17,14 @@
     "cli:publish": "cd cli && npm publish --access public"
   },
   "dependencies": {
+    "@hono/zod-validator": "^0.7.6",
     "hono": "^4.4.0",
-    "@hono/zod-validator": "^0.2.0",
-    "zod": "^3.23.0"
+    "zod": "^4.3.6"
   },
   "devDependencies": {
-    "wrangler": "^3.60.0",
-    "typescript": "^5.5.0",
     "@cloudflare/workers-types": "^4.20240614.0",
-    "bun-types": "^1.1.0"
+    "bun-types": "^1.1.0",
+    "typescript": "^6.0.2",
+    "wrangler": "^4.80.0"
   }
 }
