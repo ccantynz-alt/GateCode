@@ -6,6 +6,135 @@
 
 ---
 
+## LIVE PROJECT CHECKLIST
+
+> **Read this first.** This is the fastest way to understand this repo.
+
+### Identity
+
+| Field | Value |
+|-------|-------|
+| **Product** | GateCode — Permission gateway for AI agents (OAuth 2.1 + MCP) |
+| **Runtime** | Cloudflare Workers (edge) |
+| **Framework** | Hono v4 (TypeScript) |
+| **Database** | Cloudflare D1 (SQLite) |
+| **Sessions** | Cloudflare KV |
+| **Auth** | GitHub OAuth + API keys (`gk_` prefix, SHA-256 hashed) |
+| **Payments** | Stripe (checkout + webhooks) |
+| **Validation** | Zod v4 + @hono/zod-validator |
+| **CLI** | Zero-dependency CLI + SDK (`gatecode` npm package) |
+| **Tests** | Bun test (36 tests, 4 files) |
+| **Lines of Code** | ~4,900 TypeScript + 75 SQL |
+
+### Quick Commands
+
+```bash
+bun test            # Run all tests (36 tests, <500ms)
+npx tsc --noEmit    # Typecheck (strict mode)
+npm run dev          # Local dev server (wrangler)
+npm run deploy       # Deploy to Cloudflare Workers
+npm run db:migrate   # Apply D1 schema locally
+npm run cli:build    # Build CLI package
+npm run cli:publish  # Publish CLI to npm
+```
+
+### File Map
+
+```
+src/
+├── index.ts              ← Entry point: CORS, logging, headers, route mounting, 404/error handlers
+├── types.ts              ← Env bindings (DB, SESSIONS, vars) + context variables
+│
+├── routes/               ← 8 route files, 27+ endpoints
+│   ├── auth.ts           ← GitHub OAuth: /auth/github, /auth/callback, /auth/logout
+│   ├── requests.ts       ← Core: POST /api/request, GET /api/status/:id, approve/deny (425 lines)
+│   ├── mcp.ts            ← MCP OAuth 2.1 server: register, authorize, token, tools, execute (594 lines)
+│   ├── billing.ts        ← Stripe: checkout, portal, webhook, status
+│   ├── apikeys.ts        ← CRUD API keys with SHA-256 hashing
+│   ├── rules.ts          ← Auto-approve/deny rules (pro+ plans)
+│   ├── webhooks.ts       ← Webhook management (generic, Slack, Discord)
+│   └── audit.ts          ← Audit log queries with filters
+│
+├── middleware/
+│   ├── auth.ts           ← Session cookie/Bearer validation → user context
+│   └── rateLimit.ts      ← Per-user/IP rate limiting with headers
+│
+├── lib/
+│   ├── github.ts         ← OAuth token exchange, user profile fetch
+│   ├── notifications.ts  ← SSE manager for real-time push
+│   ├── stripe.ts         ← Stripe API + HMAC webhook verification
+│   └── webhooks.ts       ← Generic/Slack/Discord webhook delivery
+│
+├── pages/                ← HTML generators (consent, docs, landing, dashboard)
+│
+├── db/
+│   ├── schema.sql        ← 6 tables: users, permissions, rules, audit_log, api_keys, webhooks
+│   └── queries.ts        ← All DB operations (375 lines, typed interfaces)
+│
+└── __tests__/            ← 4 test suites + helpers
+    ├── health.test.ts    ← Health check, landing, docs, 404
+    ├── mcp.test.ts       ← OAuth metadata, client registration
+    ├── requests.test.ts  ← Permission request flow
+    ├── auth.test.ts      ← Auth middleware enforcement
+    └── helpers.ts        ← Test utilities
+
+cli/
+├── src/
+│   ├── cli.ts            ← CLI tool: request, status, login, whoami, keys (538 lines, zero deps)
+│   └── sdk.ts            ← TypeScript SDK: GateCode class with request/status/wait (209 lines)
+└── package.json          ← Published as `gatecode` on npm
+```
+
+### Database Tables (6)
+
+| Table | Key Columns | Indexes |
+|-------|-------------|---------|
+| **users** | id, github_id, username, email, plan, stripe_customer_id | UNIQUE(github_id) |
+| **permissions** | id, user_id, agent_id, repo, scope, status, token, expires_at | idx(user_id, status) |
+| **rules** | id, user_id, pattern, scope, action | idx(user_id) |
+| **audit_log** | id, user_id, agent_id, repo, scope, action, ip_address | idx(user_id, timestamp) |
+| **api_keys** | id, user_id, name, key_hash, key_prefix, scopes | idx(key_hash) UNIQUE |
+| **webhooks** | id, user_id, name, url, secret, type, events, active | idx(user_id) |
+
+### Zod Schemas (4 — only files needing validation changes)
+
+| File | Schema | Fields |
+|------|--------|--------|
+| `src/routes/requests.ts:61` | `requestBodySchema` | agent_id, repo, scope, reason?, user_id?, username? |
+| `src/routes/webhooks.ts:40` | `createWebhookSchema` | name, url, type?, events?, secret? |
+| `src/routes/apikeys.ts:40` | `createKeySchema` | name, scopes? |
+| `src/routes/rules.ts:26` | `createRuleSchema` | pattern, scope, action |
+
+### Auth Methods (3)
+
+1. **Session cookie** — `session=<uuid>` in KV, 24hr TTL, set after GitHub OAuth
+2. **Bearer token** — `Authorization: Bearer <token>` header (same session UUID)
+3. **API key** — `X-GateCode-Key: gk_<hex>` header, SHA-256 hashed before DB lookup
+
+### Environment Variables
+
+| Variable | Purpose |
+|----------|---------|
+| `GITHUB_CLIENT_ID` | GitHub OAuth app ID |
+| `GITHUB_CLIENT_SECRET` | GitHub OAuth secret |
+| `APP_URL` | Public URL (https://gatecode.sh) |
+| `STRIPE_SECRET_KEY` | Stripe API key |
+| `STRIPE_WEBHOOK_SECRET` | Stripe webhook HMAC secret |
+
+### Current Stack Versions
+
+| Package | Version | Status |
+|---------|---------|--------|
+| hono | ^4.4.0 | Current |
+| zod | ^4.3.6 | Current (upgraded from v3) |
+| @hono/zod-validator | ^0.7.6 | Current |
+| wrangler | ^4.80.0 | Current (upgraded from v3) |
+| typescript | ^6.0.2 | Current (upgraded from v5) |
+| @cloudflare/workers-types | ^4.20260404.1 | Current |
+| bun-types | ^1.3.11 | Current |
+
+---
+
 ## PRIME DIRECTIVE
 
 **Priority hierarchy (immutable, in this exact order):**
