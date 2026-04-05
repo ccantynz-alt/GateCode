@@ -16,24 +16,11 @@ import {
   addAuditLog,
   getApiKeyByHash,
   touchApiKey,
+  getUserGithubToken,
 } from "../db/queries";
 import type { Rule, Permission } from "../db/queries";
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-/** Convert a glob-style pattern (with * wildcards) into a RegExp. */
-function globToRegex(pattern: string): RegExp {
-  const escaped = pattern.replace(/[.+^${}()|[\]\\]/g, "\\$&");
-  const regexStr = "^" + escaped.replace(/\*/g, ".*") + "$";
-  return new RegExp(regexStr);
-}
-
-/** Check whether a repo matches a rule pattern. */
-function matchesPattern(repo: string, pattern: string): boolean {
-  return globToRegex(pattern).test(repo);
-}
+import { matchesPattern } from "../lib/patterns";
 
 // ---------------------------------------------------------------------------
 // Router
@@ -144,9 +131,16 @@ app.post("/api/request", zValidator("json", requestBodySchema), async (c) => {
         reason: body.reason ?? null,
       });
 
-      // Auto-approve: set a token immediately (MVP: placeholder)
+      // Auto-approve: look up the user's stored GitHub OAuth token
+      const githubToken = await getUserGithubToken(c.env.DB, userId);
+      if (!githubToken) {
+        // User has no stored GitHub token — cannot auto-approve without one.
+        // Fall through to the pending/manual flow instead.
+        break;
+      }
+
       const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString();
-      await approvePermission(c.env.DB, permId, "auto_approved_token", expiresAt);
+      await approvePermission(c.env.DB, permId, githubToken, expiresAt);
 
       await addAuditLog(c.env.DB, {
         user_id: userId,
@@ -160,7 +154,7 @@ app.post("/api/request", zValidator("json", requestBodySchema), async (c) => {
       return c.json({
         id: permId,
         status: "approved",
-        token: "auto_approved_token",
+        token: githubToken,
         expires_at: expiresAt,
       });
     }
