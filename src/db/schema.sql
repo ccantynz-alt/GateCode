@@ -6,6 +6,7 @@ CREATE TABLE IF NOT EXISTS users (
   username TEXT NOT NULL,
   email TEXT,
   avatar_url TEXT,
+  github_token TEXT,
   plan TEXT DEFAULT 'free' CHECK(plan IN ('free', 'pro', 'team', 'enterprise')),
   stripe_customer_id TEXT,
   created_at TEXT DEFAULT (datetime('now'))

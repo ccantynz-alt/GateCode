@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import type { Env } from "../types";
 import { exchangeCodeForToken, getGitHubUser } from "../lib/github";
+import { updateUserGithubToken } from "../db/queries";
 
 const auth = new Hono<Env>();
 
@@ -77,6 +78,9 @@ auth.get("/auth/callback", async (c) => {
   )
     .bind(ghUser.login, ghUser.email, ghUser.avatar_url, ghUser.id)
     .run();
+
+  // Store the GitHub OAuth token for auto-approve flows
+  await updateUserGithubToken(c.env.DB, ghUser.id, accessToken);
 
   const dbUser = await c.env.DB.prepare(
     "SELECT id FROM users WHERE github_id = ?"
