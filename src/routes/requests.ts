@@ -16,24 +16,11 @@ import {
   addAuditLog,
   getApiKeyByHash,
   touchApiKey,
+  getUserGithubToken,
 } from "../db/queries";
 import type { Rule, Permission } from "../db/queries";
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-/** Convert a glob-style pattern (with * wildcards) into a RegExp. */
-function globToRegex(pattern: string): RegExp {
-  const escaped = pattern.replace(/[.+^${}()|[\]\\]/g, "\\$&");
-  const regexStr = "^" + escaped.replace(/\*/g, ".*") + "$";
-  return new RegExp(regexStr);
-}
-
-/** Check whether a repo matches a rule pattern. */
-function matchesPattern(repo: string, pattern: string): boolean {
-  return globToRegex(pattern).test(repo);
-}
+import { matchesPattern } from "../lib/patterns";
 
 // ---------------------------------------------------------------------------
 // Router
@@ -144,9 +131,16 @@ app.post("/api/request", zValidator("json", requestBodySchema), async (c) => {
         reason: body.reason ?? null,
       });
 
-      // Auto-approve: set a token immediately (MVP: placeholder)
+      // Auto-approve: look up the user's stored GitHub OAuth token
+      const githubToken = await getUserGithubToken(c.env.DB, userId);
+      if (!githubToken) {
+        // User has no stored GitHub token — cannot auto-approve without one.
+        // Fall through to the pending/manual flow instead.
+        break;
+      }
+
       const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString();
-      await approvePermission(c.env.DB, permId, "auto_approved_token", expiresAt);
+      await approvePermission(c.env.DB, permId, githubToken, expiresAt);
 
       await addAuditLog(c.env.DB, {
         user_id: userId,
@@ -160,7 +154,7 @@ app.post("/api/request", zValidator("json", requestBodySchema), async (c) => {
       return c.json({
         id: permId,
         status: "approved",
-        token: "auto_approved_token",
+        token: githubToken,
         expires_at: expiresAt,
       });
     }
@@ -352,7 +346,13 @@ app.post("/api/deny/:id", authMiddleware, async (c) => {
 
 // ── GET /api/status/:id — Public endpoint for agents to poll ────────────
 
+const statusRateLimit = rateLimit({ max: 30, window: 60 });
+
 app.get("/api/status/:id", async (c) => {
+  // Rate-limit status polling to prevent abuse
+  const rateLimitResponse = await statusRateLimit(c, async () => {});
+  if (rateLimitResponse) return rateLimitResponse;
+
   const permId = Number(c.req.param("id"));
 
   if (isNaN(permId)) {
@@ -364,20 +364,37 @@ app.get("/api/status/:id", async (c) => {
     return c.json({ error: "Permission not found" }, 404);
   }
 
-  // Only include token/expiry for approved permissions
-  if (perm.status === "approved") {
-    return c.json({
-      id: perm.id,
-      status: perm.status,
-      token: perm.token,
-      expires_at: perm.expires_at,
-    });
+  // Detect expired tokens — if approved but token has expired, report it
+  const isExpired =
+    perm.status === "approved" &&
+    perm.expires_at &&
+    new Date(perm.expires_at) < new Date();
+
+  const effectiveStatus = isExpired ? "expired" : perm.status;
+
+  // Base response with full context for agents
+  const response: Record<string, unknown> = {
+    id: perm.id,
+    status: effectiveStatus,
+    repo: perm.repo,
+    scope: perm.scope,
+    agent_id: perm.agent_id,
+    reason: perm.reason,
+    created_at: perm.created_at,
+  };
+
+  // Include token/expiry for approved (non-expired) permissions
+  if (perm.status === "approved" && !isExpired) {
+    response.token = perm.token;
+    response.expires_at = perm.expires_at;
   }
 
-  return c.json({
-    id: perm.id,
-    status: perm.status,
-  });
+  // For expired tokens, still include expiry so agents know when it lapsed
+  if (isExpired) {
+    response.expired_at = perm.expires_at;
+  }
+
+  return c.json(response);
 });
 
 export default app;

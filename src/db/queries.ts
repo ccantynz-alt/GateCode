@@ -6,6 +6,7 @@ export interface User {
   username: string;
   email: string | null;
   avatar_url: string | null;
+  github_token: string | null;
   plan: "free" | "pro" | "team" | "enterprise";
   stripe_customer_id: string | null;
   created_at: string;
@@ -89,6 +90,28 @@ export async function getUserById(
     .prepare(`SELECT * FROM users WHERE id = ?`)
     .bind(id)
     .first<User>();
+}
+
+export async function updateUserGithubToken(
+  db: D1Database,
+  github_id: number,
+  github_token: string
+): Promise<void> {
+  await db
+    .prepare(`UPDATE users SET github_token = ? WHERE github_id = ?`)
+    .bind(github_token, github_id)
+    .run();
+}
+
+export async function getUserGithubToken(
+  db: D1Database,
+  user_id: number
+): Promise<string | null> {
+  const row = await db
+    .prepare(`SELECT github_token FROM users WHERE id = ?`)
+    .bind(user_id)
+    .first<{ github_token: string | null }>();
+  return row?.github_token ?? null;
 }
 
 // ── Permissions ─────────────────────────────────────────────────────

@@ -350,13 +350,24 @@ async function cmdStatus(
       ? c.green
       : result.status === "denied"
         ? c.red
-        : c.yellow;
+        : result.status === "expired"
+          ? c.dim
+          : c.yellow;
 
   console.log(
     `\n  ${c.bold}Request #${result.id}${c.reset}  ${statusColor}${result.status}${c.reset}\n`
   );
+  label("Repo", result.repo);
+  label("Scope", result.scope);
+  label("Agent", result.agent_id);
+  if (result.reason) label("Reason", result.reason);
+  label("Created", result.created_at);
   if (result.token) label("Token", result.token);
   if (result.expires_at) label("Expires", result.expires_at);
+  if (result.expired_at) {
+    label("Expired at", result.expired_at);
+    info("\nThis token has expired. Request a new one with `gatecode request`.");
+  }
   console.log();
 }
 

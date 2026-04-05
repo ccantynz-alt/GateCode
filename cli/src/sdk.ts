@@ -26,14 +26,25 @@ export interface RequestResult {
 
 export interface StatusResult {
   id: number;
-  status: string;
+  status: "pending" | "approved" | "denied" | "expired";
+  repo: string;
+  scope: "read" | "write";
+  agent_id: string;
+  reason?: string;
+  created_at: string;
   token?: string;
   expires_at?: string;
+  expired_at?: string;
 }
 
 export interface WaitResult {
   id: number;
   status: "approved" | "denied" | "timeout";
+  repo?: string;
+  scope?: "read" | "write";
+  agent_id?: string;
+  reason?: string;
+  created_at?: string;
   token?: string;
   expires_at?: string;
 }
@@ -116,6 +127,11 @@ export class GateCode {
       return {
         id: req.id,
         status: req.status,
+        repo: full.repo,
+        scope: full.scope,
+        agent_id: full.agent_id,
+        reason: full.reason,
+        created_at: full.created_at,
         token: full.token,
         expires_at: full.expires_at,
       };
@@ -133,6 +149,11 @@ export class GateCode {
         return {
           id: req.id,
           status: result.status as "approved" | "denied",
+          repo: result.repo,
+          scope: result.scope,
+          agent_id: result.agent_id,
+          reason: result.reason,
+          created_at: result.created_at,
           token: result.token,
           expires_at: result.expires_at,
         };
