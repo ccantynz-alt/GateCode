@@ -10,7 +10,8 @@ import { getRules, createRule, deleteRule } from "../db/queries";
 const app = new Hono<Env>();
 
 // All routes require authentication
-app.use("/*", authMiddleware);
+app.use("/api/rules/*", authMiddleware);
+app.use("/api/rules", authMiddleware);
 
 // ── GET /api/rules — List rules for authenticated user ──────────────────
 

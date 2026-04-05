@@ -1,12 +1,235 @@
-# Gate
-I’m building GateCode (gatecode.sh) — an OAuth-style permission gateway for AI coding agents. Instead of hardcoding API keys and repo lists, AI tools (Claude Code, Cursor, Copilot) request access at runtime, and the user approves via a simple UI.
-The problem: Right now in Claude Code, you have to pre-configure which repos the AI can access. If it needs a new repo mid-session, you’re stuck. This solves that.
-How it works: AI Agent needs repo access, calls GateCode API saying “I need read/write on user/repo”, user gets instant notification, user taps Allow or Deny, agent gets a scoped time-limited token.
-Tech stack — everything on Cloudflare, zero servers: Cloudflare Workers for API and webhook handler, Cloudflare D1 SQLite for storage, Cloudflare Pages for landing page and approval UI, GitHub OAuth App for authentication, TypeScript plus Hono, Bun for local dev, Wrangler for Cloudflare deployment.
-Build V1 MVP with these features only: 1) GitHub OAuth login so user signs in with GitHub and GateCode gets their repo list. 2) Permission request API at POST /api/request accepting agent_id, repo, scope of read or write, and reason — creates a pending permission request. 3) Real-time approval UI showing pending requests with Allow and Deny buttons using SSE so it updates live. Must work great on mobile since users will approve from their phone. 4) Token exchange — on approval return a scoped GitHub token with only requested permissions, time-limited to 1 hour default. 5) Auto-approve rules so users can set rules like always allow read on public repos, always allow this agent on these repos, ask me for everything else. 6) Audit log recording every request, approval, and denial with timestamp, agent, repo, and scope. 7) Landing page that is clean and developer-focused explaining what GateCode does with a Get Started button. Brand name is GateCode, domain is gatecode.sh, tagline is Gate your code.
-Database schema for D1 SQLite: users table with id, github_id, username, email, plan (free/pro/team/enterprise), created_at. permissions table with id, user_id, agent_id, repo, scope, status (pending/approved/denied), expires_at, created_at. rules table with id, user_id, pattern (repo glob like myorg/*), scope, action (auto_approve/auto_deny/ask), created_at. audit_log table with id, user_id, agent_id, repo, scope, action (approved/denied/auto_approved), ip_address, timestamp.
-Pricing tiers to display on landing page with NO Stripe integration yet just UI: Free gets 3 repos with manual approval only. Pro at $9/mo gets unlimited repos, auto-approve rules, audit log export. Team at $29/mo gets multiple users, org-wide policies, shared rules. Enterprise at $99/mo gets SSO, compliance reporting, custom policies, SLA.
-API endpoints: GET /auth/github to initiate OAuth, GET /auth/callback for OAuth callback, POST /api/request for agent permission requests, GET /api/pending to list pending requests as SSE stream, POST /api/approve/:id to approve, POST /api/deny/:id to deny, GET /api/rules to list rules, POST /api/rules to create rules, DELETE /api/rules/:id to delete rules, GET /api/audit to query audit log, GET /health for health check.
-Project structure: src/index.ts as Hono app entry point, src/routes/ with auth.ts, requests.ts, rules.ts, audit.ts, src/db/ with schema.sql and queries.ts, src/middleware/auth.ts for session validation, src/lib/github.ts for GitHub API helpers and notifications.ts for SSE, src/pages/ with landing.tsx and dashboard.tsx, plus wrangler.toml, package.json, and tsconfig.json.
-Important: This is a STANDALONE product that does not depend on any other repo. npm package name will be gatecode which is confirmed available. Make the approval UI beautiful and mobile-friendly. Every permission is time-limited with 1 hour default. Security first with tokens scoped to minimum necessary permissions.
-Run multiple agents in parallel on different parts. Ship working code, not perfect code. Read any existing files before making changes.
+# GateCode
+
+> Gate your code. OAuth-style permission gateway for AI coding agents.
+
+AI agents write code fast -- but should they `rm -rf /` without asking? GateCode sits between your AI coding agent and dangerous operations, requiring human approval before anything runs. Think OAuth consent screens, but for every file write, shell command, or deploy your agent wants to make. Real-time notifications, one-click approve/deny, and auto-rules so you stay in control without slowing down.
+
+## Quick Start
+
+```bash
+# 1. Sign up with GitHub
+open https://gatecode.sh
+
+# 2. Create an API key in the dashboard
+#    (Settings → API Keys → Create)
+
+# 3. Install the CLI
+npx gatecode init
+
+# 4. Send your first permission request
+npx gatecode request --action "write" --resource "src/index.ts" --reason "Add error handling"
+```
+
+## How It Works
+
+```
+┌─────────┐     POST /api/request      ┌───────────┐
+│  Agent   │ ─────────────────────────► │  GateCode │
+└─────────┘                             └─────┬─────┘
+                                              │
+                              SSE + Slack/Discord/Webhook
+                                              │
+                                              ▼
+                                        ┌───────────┐
+                                        │  Human    │
+                                        │  Reviewer │
+                                        └─────┬─────┘
+                                              │
+                                      Approve / Deny
+                                              │
+                                              ▼
+┌─────────┐    GET /api/status/:id      ┌───────────┐
+│  Agent   │ ◄───────────────────────── │  GateCode │
+│ proceeds │    { status: "approved" }  └───────────┘
+└─────────┘
+```
+
+## Features
+
+**Core**
+- Permission request/approve/deny with real-time SSE streaming
+- Auto-approve and auto-deny rules with glob patterns
+- API key authentication (`gk_` prefix, SHA-256 hashed at rest)
+- Rate limiting per key
+- Full audit log with filters and pagination
+
+**Notifications**
+- Slack notifications (incoming webhooks)
+- Discord notifications (webhook integration)
+- Generic webhook support with HMAC signing
+- Real-time SSE push to the dashboard
+
+**Integrations**
+- MCP OAuth 2.1 server (discovery, PKCE, dynamic client registration)
+- GitHub OAuth login
+- `.gatecode.yml` permissions-as-code config
+
+**Billing**
+- Free tier included
+- Pro ($9/mo) | Team ($29/mo) | Enterprise ($99/mo)
+- Stripe Checkout + Customer Portal
+- Usage-based limits per plan
+
+## CLI
+
+```bash
+# Install globally (or use npx -- zero deps)
+npm install -g gatecode
+
+# Request permission for an action
+npx gatecode request \
+  --action "exec" \
+  --resource "rm -rf dist/" \
+  --reason "Clean build artifacts"
+
+# Check request status
+npx gatecode status req_abc123
+
+# List pending requests
+npx gatecode pending
+```
+
+## SDK
+
+```bash
+npm install gatecode
+```
+
+```typescript
+import { GateCode } from "gatecode";
+
+const gate = new GateCode({ apiKey: process.env.GATECODE_API_KEY });
+
+// Request permission and wait for approval
+const result = await gate.request({
+  action: "write",
+  resource: "src/database.ts",
+  reason: "Add migration for users table",
+});
+
+if (result.status === "approved") {
+  // proceed with the operation
+}
+```
+
+## API Reference
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| `POST` | `/api/request` | API Key | Create a permission request |
+| `GET` | `/api/status/:id` | API Key | Poll request status |
+| `GET` | `/api/pending` | Session | List pending requests |
+| `POST` | `/api/approve/:id` | Session | Approve a request |
+| `POST` | `/api/deny/:id` | Session | Deny a request |
+| `GET` | `/api/rules` | Session | List auto-approve/deny rules |
+| `POST` | `/api/rules` | Session | Create a rule |
+| `DELETE` | `/api/rules/:id` | Session | Delete a rule |
+| `GET` | `/api/keys` | Session | List API keys |
+| `POST` | `/api/keys` | Session | Create an API key |
+| `DELETE` | `/api/keys/:id` | Session | Revoke an API key |
+| `GET` | `/api/audit` | Session | Query audit log |
+| `GET` | `/api/webhooks` | Session | List webhooks |
+| `POST` | `/api/webhooks` | Session | Create a webhook |
+| `DELETE` | `/api/webhooks/:id` | Session | Delete a webhook |
+| `POST` | `/api/webhooks/:id/test` | Session | Test a webhook |
+| `POST` | `/api/billing/checkout` | Session | Create Stripe checkout |
+| `POST` | `/api/billing/portal` | Session | Open billing portal |
+| `GET` | `/api/billing/status` | Session | Get plan status |
+| `GET` | `/health` | None | Health check |
+
+## MCP Server
+
+GateCode implements an [MCP](https://modelcontextprotocol.io/) OAuth 2.1 authorization server, so MCP-compatible AI clients can request permissions natively.
+
+**Discovery endpoint:**
+
+```
+GET https://gatecode.sh/.well-known/oauth-authorization-server
+```
+
+**MCP endpoints:**
+
+| Path | Description |
+|------|-------------|
+| `POST /mcp/register` | Dynamic client registration |
+| `GET /mcp/authorize` | Authorization + consent screen |
+| `POST /mcp/token` | Token exchange (PKCE required) |
+| `POST /mcp/revoke` | Token revocation |
+| `GET /mcp/tools` | List available MCP tools |
+| `POST /mcp/execute` | Execute an MCP tool |
+
+## Configuration
+
+Drop a `.gatecode.yml` in your repo root to define permissions-as-code:
+
+```yaml
+# .gatecode.yml
+version: 1
+
+rules:
+  # Auto-approve test file writes
+  - action: write
+    resource: "tests/**"
+    decision: approve
+
+  # Auto-deny anything touching production config
+  - action: write
+    resource: "config/production.*"
+    decision: deny
+
+  # Require approval for shell commands
+  - action: exec
+    resource: "*"
+    decision: ask
+
+notifications:
+  slack: https://hooks.slack.com/services/T.../B.../xxx
+  discord: https://discord.com/api/webhooks/.../...
+```
+
+## Self-Hosting
+
+GateCode runs on Cloudflare Workers with D1 (SQLite) and KV.
+
+```bash
+# Clone the repo
+git clone https://github.com/gatecode/gatecode.git
+cd gatecode
+
+# Install dependencies
+npm install
+
+# Set up your environment
+cp .dev.vars.example .dev.vars
+# Edit .dev.vars with your GitHub OAuth + Stripe keys
+
+# Create D1 database
+wrangler d1 create gatecode-db
+# Update wrangler.toml with the database_id
+
+# Run migrations
+npm run db:migrate
+
+# Local development
+npm run dev
+
+# Deploy to production
+npm run deploy
+```
+
+## Architecture
+
+- **Runtime:** Cloudflare Workers
+- **Framework:** Hono
+- **Database:** Cloudflare D1 (SQLite)
+- **Sessions:** Cloudflare KV
+- **Auth:** GitHub OAuth + API keys (SHA-256 hashed)
+- **Payments:** Stripe Checkout + Webhooks
+- **Real-time:** Server-Sent Events (SSE)
+- **Validation:** Zod
+- **Language:** TypeScript
+- **CLI:** Zero-dependency, runs via `npx`
+
+## License
+
+MIT License. See [LICENSE](./LICENSE).

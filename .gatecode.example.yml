@@ -1,0 +1,29 @@
+# .gatecode.yml — GateCode permission configuration
+# Place this in your repo root to define default access policies
+
+version: 1
+
+# Your GateCode username
+owner: your-github-username
+
+# Default rules for this repository
+rules:
+  - scope: read
+    action: auto_approve  # Allow all read access automatically
+
+  - scope: write
+    agents: ["claude-code", "cursor"]
+    action: ask  # Require manual approval for writes
+
+  - scope: write
+    agents: ["*"]
+    action: auto_deny  # Deny write access from unknown agents
+
+# Notifications
+notifications:
+  slack: https://hooks.slack.com/services/YOUR/WEBHOOK/URL
+
+# Token settings
+tokens:
+  default_ttl: 3600  # 1 hour
+  max_ttl: 28800     # 8 hours

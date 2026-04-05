@@ -8,7 +8,8 @@ import type { AuditEntry } from "../db/queries";
 const app = new Hono<Env>();
 
 // All routes require authentication
-app.use("/*", authMiddleware);
+app.use("/api/audit/*", authMiddleware);
+app.use("/api/audit", authMiddleware);
 
 // ── GET /api/audit — Query audit log with filters and pagination ────────
 

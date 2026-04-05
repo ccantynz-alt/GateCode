@@ -19,6 +19,11 @@ import {
   getUserGithubToken,
 } from "../db/queries";
 import type { Rule, Permission } from "../db/queries";
+import {
+  sendWebhook,
+  sendSlackNotification,
+  sendDiscordNotification,
+} from "../lib/webhooks";
 
 import { matchesPattern } from "../lib/patterns";
 
@@ -203,6 +208,42 @@ app.post("/api/request", zValidator("json", requestBodySchema), async (c) => {
     scope: body.scope,
     reason: body.reason ?? null,
   });
+
+  // Fire webhook notifications asynchronously
+  const appUrl = c.env.APP_URL || "https://gatecode.sh";
+  c.executionCtx.waitUntil(
+    (async () => {
+      const { results: hooks } = await c.env.DB.prepare(
+        "SELECT * FROM webhooks WHERE user_id = ? AND active = 1"
+      )
+        .bind(userId)
+        .all<{ id: number; url: string; secret: string; type: string }>();
+
+      const notifData = {
+        agent_id: body.agent_id,
+        repo: body.repo,
+        scope: body.scope,
+        reason: body.reason ?? undefined,
+        approveUrl: `${appUrl}/dashboard`,
+        denyUrl: `${appUrl}/dashboard`,
+      };
+
+      for (const hook of hooks) {
+        if (hook.type === "slack") {
+          sendSlackNotification(hook.url, "new_request", notifData);
+        } else if (hook.type === "discord") {
+          sendDiscordNotification(hook.url, "new_request", notifData);
+        } else {
+          sendWebhook(hook.url, hook.secret, "new_request", {
+            event: "new_request",
+            permission_id: permId,
+            ...notifData,
+            timestamp: new Date().toISOString(),
+          });
+        }
+      }
+    })()
+  );
 
   return c.json({ id: permId, status: "pending" });
 });

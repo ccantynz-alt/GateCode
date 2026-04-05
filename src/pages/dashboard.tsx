@@ -503,6 +503,7 @@ export const dashboardPage = async (c: Context<Env & { Variables: { user: { id: 
     <button class="tab" data-tab="audit">Audit Log</button>
     <button class="tab" data-tab="keys">API Keys</button>
     <button class="tab" data-tab="billing">Billing</button>
+    <button class="tab" data-tab="setup">Setup Guide</button>
   </div>
 
   <div class="container">
@@ -683,6 +684,82 @@ export const dashboardPage = async (c: Context<Env & { Variables: { user: { id: 
             </tbody>
           </table>
         </div>
+      </div>
+    </div>
+
+    <!-- Setup Guide -->
+    <div id="panel-setup" class="tab-panel">
+      <h3 style="font-size:1.15rem;font-weight:600;margin-bottom:1.25rem;">Integrate GateCode with your AI tools</h3>
+
+      <div class="rule-form" style="margin-top:0;margin-bottom:1.25rem;">
+        <h3 style="display:flex;align-items:center;gap:.5rem;">Claude Code</h3>
+        <p style="color:var(--text-dim);font-size:.9rem;margin-bottom:1rem;">Add to your project's CLAUDE.md file:</p>
+        <div style="position:relative;">
+          <pre style="background:var(--bg-input);border:1px solid var(--border);border-radius:8px;padding:1rem;font-family:var(--mono);font-size:.82rem;overflow-x:auto;color:var(--text-dim);line-height:1.7;">
+# GateCode Integration
+# Before accessing new repos, request permission:
+# npx gatecode request &lt;repo&gt; --scope write --wait
+#
+# Set your API key:
+# export GATECODE_API_KEY=gk_your_key_here
+# export GATECODE_USERNAME=${user.username}</pre>
+          <button class="btn-copy" style="position:absolute;top:.5rem;right:.5rem;" onclick="copySnippet(this, 'claude')">Copy</button>
+        </div>
+      </div>
+
+      <div class="rule-form" style="margin-top:0;margin-bottom:1.25rem;">
+        <h3>TypeScript SDK</h3>
+        <p style="color:var(--text-dim);font-size:.9rem;margin-bottom:1rem;">Install and use in your agent code:</p>
+        <div style="position:relative;">
+          <pre style="background:var(--bg-input);border:1px solid var(--border);border-radius:8px;padding:1rem;font-family:var(--mono);font-size:.82rem;overflow-x:auto;color:var(--text-dim);line-height:1.7;">npm install gatecode
+
+import { GateCode } from 'gatecode';
+const gate = new GateCode({
+  apiKey: process.env.GATECODE_API_KEY,
+  username: '${user.username}'
+});
+const { token } = await gate.requestAndWait({
+  repo: 'org/repo', scope: 'write'
+});</pre>
+          <button class="btn-copy" style="position:absolute;top:.5rem;right:.5rem;" onclick="copySnippet(this, 'sdk')">Copy</button>
+        </div>
+      </div>
+
+      <div class="rule-form" style="margin-top:0;margin-bottom:1.25rem;">
+        <h3>cURL / Any Agent</h3>
+        <p style="color:var(--text-dim);font-size:.9rem;margin-bottom:1rem;">Direct API access:</p>
+        <div style="position:relative;">
+          <pre style="background:var(--bg-input);border:1px solid var(--border);border-radius:8px;padding:1rem;font-family:var(--mono);font-size:.82rem;overflow-x:auto;color:var(--text-dim);line-height:1.7;">curl -X POST https://gatecode.sh/api/request \\
+  -H "X-GateCode-Key: gk_your_key" \\
+  -H "Content-Type: application/json" \\
+  -d '{"agent_id":"my-agent","repo":"org/repo","scope":"write","username":"${user.username}"}'</pre>
+          <button class="btn-copy" style="position:absolute;top:.5rem;right:.5rem;" onclick="copySnippet(this, 'curl')">Copy</button>
+        </div>
+      </div>
+
+      <div class="rule-form" style="margin-top:0;margin-bottom:1.25rem;">
+        <h3>Webhook Notifications</h3>
+        <p style="color:var(--text-dim);font-size:.9rem;margin-bottom:1rem;">Get notified on Slack or Discord when agents request access.</p>
+        <div id="webhooks-list" style="margin-bottom:1rem;"></div>
+        <div class="form-row" style="grid-template-columns:1fr 1fr;">
+          <div class="form-field">
+            <label for="wh-name">Name</label>
+            <input id="wh-name" type="text" placeholder="e.g. team-slack" />
+          </div>
+          <div class="form-field">
+            <label for="wh-type">Type</label>
+            <select id="wh-type">
+              <option value="slack">Slack</option>
+              <option value="discord">Discord</option>
+              <option value="generic">Generic</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-field" style="margin-bottom:.75rem;">
+          <label for="wh-url">Webhook URL</label>
+          <input id="wh-url" type="url" placeholder="https://hooks.slack.com/services/..." />
+        </div>
+        <button class="btn-add-rule" onclick="addWebhook()">Add Webhook</button>
       </div>
     </div>
 
@@ -1072,6 +1149,83 @@ export const dashboardPage = async (c: Context<Env & { Variables: { user: { id: 
       });
 
     // ── Logout ──────────────────────────────────
+    // ── Webhooks ─────────────────────────────────
+    var webhooksList = [];
+
+    function loadWebhooks() {
+      fetch('/api/webhooks', { credentials: 'same-origin' })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+          webhooksList = data.webhooks || [];
+          renderWebhooks();
+        });
+    }
+
+    function renderWebhooks() {
+      var el = document.getElementById('webhooks-list');
+      if (!el) return;
+      if (webhooksList.length === 0) {
+        el.innerHTML = '<p style="color:var(--text-dim);font-size:.85rem;">No webhooks configured.</p>';
+        return;
+      }
+      el.innerHTML = webhooksList.map(function(w) {
+        return '<div class="key-item">' +
+          '<div>' +
+            '<div class="key-name">' + esc(w.name) + ' <span class="badge badge-repo" style="font-size:.65rem;">' + w.type + '</span></div>' +
+            '<div class="key-prefix" style="font-size:.8rem;">' + esc(w.url).substring(0, 50) + '...</div>' +
+          '</div>' +
+          '<div style="display:flex;gap:.5rem;">' +
+            '<button class="btn-copy" onclick="testWebhook(' + w.id + ',this)">Test</button>' +
+            '<button class="btn-delete-rule" onclick="deleteWebhook(' + w.id + ')">Delete</button>' +
+          '</div>' +
+        '</div>';
+      }).join('');
+    }
+
+    function addWebhook() {
+      var name = document.getElementById('wh-name').value.trim();
+      var type = document.getElementById('wh-type').value;
+      var url = document.getElementById('wh-url').value.trim();
+      if (!name || !url) return;
+      fetch('/api/webhooks', {
+        method: 'POST', credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: name, type: type, url: url })
+      }).then(function(r) { return r.json(); }).then(function() {
+        document.getElementById('wh-name').value = '';
+        document.getElementById('wh-url').value = '';
+        loadWebhooks();
+      });
+    }
+
+    function deleteWebhook(id) {
+      fetch('/api/webhooks/' + id, { method: 'DELETE', credentials: 'same-origin' })
+        .then(function() { loadWebhooks(); });
+    }
+
+    function testWebhook(id, btn) {
+      btn.textContent = '...';
+      fetch('/api/webhooks/' + id + '/test', { method: 'POST', credentials: 'same-origin' })
+        .then(function(r) { return r.json(); })
+        .then(function(data) { btn.textContent = data.success ? 'Sent!' : 'Failed'; })
+        .catch(function() { btn.textContent = 'Error'; });
+    }
+
+    // Load webhooks when setup tab is clicked
+    document.querySelector('[data-tab="setup"]').addEventListener('click', function() {
+      loadWebhooks();
+    });
+
+    // ── Copy snippet helper ─────────────────────
+    function copySnippet(btn, id) {
+      var pre = btn.parentElement.querySelector('pre');
+      if (!pre) return;
+      navigator.clipboard.writeText(pre.textContent.trim()).then(function() {
+        btn.textContent = 'Copied!';
+        setTimeout(function() { btn.textContent = 'Copy'; }, 2000);
+      });
+    }
+
     function logout() {
       document.cookie = 'session=; Max-Age=0; path=/;';
       window.location.href = '/';

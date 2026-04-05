@@ -15,7 +15,7 @@
   },
   "dependencies": {},
   "devDependencies": {
-    "typescript": "^5.5.0"
+    "typescript": "^6.0.2"
   },
   "keywords": ["gatecode", "ai", "agent", "permissions", "oauth", "github"],
   "license": "MIT",
